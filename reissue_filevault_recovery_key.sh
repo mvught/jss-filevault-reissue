@@ -13,43 +13,83 @@
 #         Created:  2015-01-05
 #   Last Modified:  2022-02-04
 #         Version:  1.12.1
+#   
+#   Updated to work with Swift Dialog by Tom Bartlett (@macsimus) 2022-10-13
+#   Version: 1.0
 #
 ###
 
+scriptVersion="1.0"
 
 ################################## VARIABLES ##################################
 
-# (Optional) Path to a logo that will be used in messaging. Recommend 512px,
-# PNG format. If no logo is provided, the FileVault icon will be used.
-LOGO=""
-
-# The title of the message that will be displayed to the user.
-# Not too long, or it'll get clipped.
-PROMPT_TITLE="Encryption Key Escrow"
-
 # The body of the message that will be displayed before prompting the user for
 # their password. All message strings below can be multiple lines.
-PROMPT_MESSAGE="Your Mac's FileVault encryption key needs to be escrowed by PretendCo IT.
-
-Click the Next button below, then enter your Mac's password when prompted."
-
-# The body of the message that will be displayed after 5 incorrect passwords.
-FORGOT_PW_MESSAGE="You made five incorrect password attempts.
-
-Please contact the Help Desk at 555-1212 for help with your Mac password."
-
-# The body of the message that will be displayed after successful completion.
-SUCCESS_MESSAGE="Thank you! Your FileVault key has been escrowed."
+message="## FileVault Recovery Key Update\n\nVentureWell uses macOS FileVault encryption to ensure your data is protected. The recovery key for this encryption is used if you ever get locked out of your Mac.\n\n We have discovered a problem with your existing recovery key. Please sign in below to rotate and store a new recovery key."
+forgotMessage="## FileVault Recovery Key Update\n\nVentureWell uses macOS FileVault encryption to ensure your data is protected. The recovery key for this encryption is used if you ever get locked out of your Mac.\n\n We have discovered a problem with your existing recovery key. Please sign in below to rotate and store a new recovery key.\n\n ### Password Incorrect please try again:"
+banner="https://github.com/unfo33/venturewell-image/blob/main/recovery%20key%20update%20required.jpg?raw=true"
 
 # The body of the message that will be displayed if a failure occurs.
-FAIL_MESSAGE="Sorry, an error occurred while escrowing your FileVault key. Please contact the Help Desk at 555-1212 for help."
+FAIL_MESSAGE="## Key rotation failure.\n\nWe ran into an error rotating your FileVault key. \n\nPlease contact support to ensure your backup key is stored: support@venturewell.org."
 
 # Optional but recommended: The profile identifiers of the FileVault Key
 # Redirection profiles (e.g. ABCDEF12-3456-7890-ABCD-EF1234567890).
 PROFILE_IDENTIFIER_10_12="" # 10.12 and earlier
-PROFILE_IDENTIFIER_10_13="" # 10.13 and later
+PROFILE_IDENTIFIER_10_13="931CB565-285B-4C7C-83BC-C25E94DEDDE3" # 10.13 and later
 
+## SwiftDialog
+dialogApp="/usr/local/bin/dialog"
 
+# Main dialog
+dialogCMD="$dialogApp \
+--title \"none\" \
+--bannerimage \"$banner\" \
+--message \"$message\" \
+--button1text \"Submit\" \
+--infotext \"$scriptVersion\" \
+--messagefont 'size=14' \
+--position 'centre' \
+--ontop \
+--moveable \
+--textfield \"Enter Password\",secure,required"
+
+# Forgot password dialog
+dialogForgotCMD="$dialogApp \
+--title \"none\" \
+--bannerimage \"$banner\" \
+--message \"$forgotMessage\" \
+--button1text \"Submit\" \
+--infotext \"$scriptVersion\" \
+--messagefont 'size=14' \
+--position 'centre' \
+--ontop \
+--moveable \
+--textfield \"Enter Password\",secure,required"
+
+# Error dialog
+dialogError="$dialogApp \
+--title \"none\" \
+--bannerimage \"$banner\" \
+--message \"$FAIL_MESSAGE\" \
+--button1text \"Close\" \
+--infotext \"$scriptVersion\" \
+--messagefont 'size=14' \
+--position 'centre' \
+--ontop \
+--moveable \ "
+
+# Success Dialog
+dialogSuccess="$dialogApp \
+--title \"none\" \
+--image \"https://github.com/unfo33/venturewell-image/blob/main/a-hand-drawn-illustration-of-thank-you-letter-simple-doodle-icon-illustration-in-for-decorating-any-design-free-vector.jpeg?raw=true\" \
+--imagecaption \"Your FileVault key has been rotated successfully!\" \
+--bannerimage \"$banner\" \
+--button1text \"Close\" \
+--infotext \"$scriptVersion\" \
+--messagefont 'size=14' \
+--position 'centre' \
+--ontop \
+--moveable \ "
 ###############################################################################
 ######################### DO NOT EDIT BELOW THIS LINE #########################
 ###############################################################################
@@ -143,43 +183,7 @@ elif [[ "$OS_MAJOR" -eq 10 && "$OS_MINOR" -gt 12 ]]; then
     fi
 fi
 
-
 ################################ MAIN PROCESS #################################
-
-# Validate logo file. If no logo is provided or if the file cannot be found at
-# specified path, default to the FileVault icon.
-if [[ -z "$LOGO" ]] || [[ ! -f "$LOGO" ]]; then
-    if [[ -f "/System/Library/PreferencePanes/Security.prefPane/Contents/Resources/FileVault.icns" ]]; then
-        /bin/echo "No logo provided, or no logo exists at specified path. Using FileVault icon."
-        LOGO="/System/Library/PreferencePanes/Security.prefPane/Contents/Resources/FileVault.icns"
-    elif [[ -f "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FileVaultIcon.icns" ]]; then
-        /bin/echo "No logo provided, or no logo exists at specified path. Using FileVault icon."
-        LOGO="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/FileVaultIcon.icns"
-    elif [[ -f "/System/Library/PreferencePanes/Security.prefPane/Contents/XPCServices/com.apple.preference.security.remoteservice.xpc/Contents/Resources/FileVault.icns" ]]; then
-        /bin/echo "No logo provided, or no logo exists at specified path. Using FileVault icon."
-        LOGO="/System/Library/PreferencePanes/Security.prefPane/Contents/XPCServices/com.apple.preference.security.remoteservice.xpc/Contents/Resources/FileVault.icns"
-    elif [[ -f "/System/Library/PreferencePanes/Security.prefPane/Contents/Resources/SystemPreferences_Security.tiff" ]]; then
-        /bin/echo "No logo provided, or no logo exists at specified path. Using FileVault icon."
-        LOGO="/System/Library/PreferencePanes/Security.prefPane/Contents/Resources/SystemPreferences_Security.tiff"
-    else
-        REASON="No suitable logo could be found."
-        BAILOUT=true
-    fi
-fi
-
-# Convert POSIX path of logo icon to Mac path for AppleScript.
-LOGO_POSIX="$(/usr/bin/osascript -e 'return POSIX file "'"$LOGO"'" as text')"
-
-# Get information necessary to display messages in the current user's context.
-# Using both `launchctl` and `sudo -u` per this example: https://scriptingosx.com/2020/08/running-a-command-as-another-user/
-USER_ID=$(/usr/bin/id -u "$CURRENT_USER")
-if [[ "$OS_MAJOR" -eq 10 && "$OS_MINOR" -le 9 ]]; then
-    L_ID=$(/usr/bin/pgrep -x -u "$USER_ID" loginwindow)
-    L_METHOD="bsexec"
-else
-    L_ID=$USER_ID
-    L_METHOD="asuser"
-fi
 
 # If any error occurred in the validation section, bail out.
 if [[ "$BAILOUT" == "true" ]]; then
@@ -190,21 +194,17 @@ fi
 
 # Display a branded prompt explaining the password prompt.
 echo "Alerting user $CURRENT_USER about incoming password prompt..."
-/bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" "$jamfHelper" -windowType "utility" -icon "$LOGO" -title "$PROMPT_TITLE" -description "$PROMPT_MESSAGE" -button1 "Next" -defaultButton 1 -startlaunchd &>/dev/null
-
-# Get the logged in user's password via a prompt.
-echo "Prompting $CURRENT_USER for their Mac password..."
-USER_PASS="$(/bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" /usr/bin/osascript -e 'display dialog "Please enter the password you use to log in to your Mac:" default answer "" with title "'"${PROMPT_TITLE//\"/\\\"}"'" giving up after 86400 with text buttons {"OK"} default button 1 with hidden answer with icon file "'"${LOGO_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
+USER_PASS=$(eval "$dialogCMD" | grep "Enter Password" | awk -F " : " '{print $NF}')
 
 # Thanks to James Barclay (@futureimperfect) for this password validation loop.
 TRY=1
-until /usr/bin/dscl /Search -authonly "$CURRENT_USER" "$USER_PASS" &>/dev/null; do
+until /usr/bin/dscl /Search -authonly "$CURRENT_USER" "${USER_PASS}" &>/dev/null; do
     (( TRY++ ))
     echo "Prompting $CURRENT_USER for their Mac password (attempt $TRY)..."
-    USER_PASS="$(/bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" /usr/bin/osascript -e 'display dialog "Sorry, that password was incorrect. Please try again:" default answer "" with title "'"${PROMPT_TITLE//\"/\\\"}"'" giving up after 86400 with text buttons {"OK"} default button 1 with hidden answer with icon file "'"${LOGO_POSIX//\"/\\\"}"'"' -e 'return text returned of result')"
+    USER_PASS=$(eval "$dialogForgotCMD" | grep "Enter Password" | awk -F " : " '{print $NF}')
     if (( TRY >= 5 )); then
         echo "[ERROR] Password prompt unsuccessful after 5 attempts. Displaying \"forgot password\" message..."
-        /bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" "$jamfHelper" -windowType "utility" -icon "$LOGO" -title "$PROMPT_TITLE" -description "$FORGOT_PW_MESSAGE" -button1 'OK' -defaultButton 1 -startlaunchd &>/dev/null &
+        eval "$dialogError"
         exit 1
     fi
 done
@@ -283,16 +283,16 @@ if [[ $FDESETUP_RESULT -ne 0 ]]; then
     echo "See this page for a list of fdesetup exit codes and their meaning:"
     echo "https://developer.apple.com/legacy/library/documentation/Darwin/Reference/ManPages/man8/fdesetup.8.html"
     echo "Displaying \"failure\" message..."
-    /bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" "$jamfHelper" -windowType "utility" -icon "$LOGO" -title "$PROMPT_TITLE" -description "$FAIL_MESSAGE: fdesetup exited with code $FDESETUP_RESULT. Output: $FDESETUP_OUTPUT" -button1 'OK' -defaultButton 1 -startlaunchd &>/dev/null &
+    eval "$dialogError"
 elif [[ $ESCROW_STATUS -ne 0 ]]; then
     [[ -n "$FDESETUP_OUTPUT" ]] && echo "$FDESETUP_OUTPUT"
     echo "[WARNING] FileVault key was generated, but escrow cannot be confirmed. Please verify that the redirection profile is installed and the Mac is connected to the internet."
     echo "Displaying \"failure\" message..."
-    /bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" "$jamfHelper" -windowType "utility" -icon "$LOGO" -title "$PROMPT_TITLE" -description "$FAIL_MESSAGE: New key generated, but escrow did not occur." -button1 'OK' -defaultButton 1 -startlaunchd &>/dev/null &
+    eval "$dialogError"
 else
     [[ -n "$FDESETUP_OUTPUT" ]] && echo "$FDESETUP_OUTPUT"
     echo "Displaying \"success\" message..."
-    /bin/launchctl "$L_METHOD" "$L_ID" sudo -u "$CURRENT_USER" "$jamfHelper" -windowType "utility" -icon "$LOGO" -title "$PROMPT_TITLE" -description "$SUCCESS_MESSAGE" -button1 'OK' -defaultButton 1 -startlaunchd &>/dev/null &
+    eval "$dialogSuccess"
 fi
 
 exit $FDESETUP_RESULT
