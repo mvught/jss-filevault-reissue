@@ -1,5 +1,5 @@
 # Reissuing FileVault keys with Jamf
-_based on https://github.com/homebysix/jss-filevault-reissue
+_based on https://github.com/homebysix/jss-filevault-reissue_
 
 _Update to support SwiftDialog by Tom Bartlett - VentureWell - October 21, 2022_
 
