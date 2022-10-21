@@ -1,5 +1,6 @@
 # Reissuing FileVault keys with Jamf
-_based on https://github.com/homebysix/jss-filevault-reissue_
+_based on https://github.com/homebysix/jss-filevault-reissue
+
 _Update to support SwiftDialog by Tom Bartlett - VentureWell - October 21, 2022_
 
 This tool provides a nice user interface to rotate FileVault recovery keys. It uses the great SwiftDialog tool: https://github.com/bartreardon/swiftDialog
